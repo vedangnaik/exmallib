@@ -13,10 +13,16 @@ typedef struct blockInfo {
 // global base of blockInfo linked list
 extern void* baseOfBlockLL;
 
+// general helper functions
+blockInfo* memPtrToBlockInfoPtr(void* ptrToMem);
+
 // exmalloc (malloc) and helper functions
 blockInfo* findFreeBlock(size_t size);
 void* getMemoryFromOS(size_t size);
 void* exmalloc(size_t size);
 
-// dealloc (free)
-void dealloc(void* ptrToMem);
+// exfree (free)
+void exfree(void* ptrToMem);
+
+// exrealloc
+void* exrealloc(void* ptrToMem, size_t newSize);

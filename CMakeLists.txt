@@ -5,7 +5,9 @@ add_library(
     exmallib STATIC
     exmallib.h
     exmalloc.c
-    dealloc.c
+    exfree.c
+    exrealloc.c
+    helpers.c
 )
 
 add_executable(exmallibProject main.c)

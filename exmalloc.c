@@ -32,7 +32,10 @@ void* getMemoryFromOS(size_t size) {
     }
 }
 
-// The actual exmalloc function which does memory allocation.
+
+/*
+    The actual exmalloc function which does the memory allocation. It uses the two helpers functions above.
+*/
 void* exmalloc(size_t size) {
     if (size <= 0) { return NULL; }
 
@@ -71,13 +74,13 @@ void* exmalloc(size_t size) {
         } else {
             // welp, no free block is big enough. Hence, get some
             // more memory, make a new one, and stick it to the end.
-            void* ptrToNewMem = getMemoryFromOS(size);
+            void* ptrToNewMem = getMemoryFromOS(size + BLOCKINFOSIZE);
             if (ptrToNewMem == NULL) {
                 // whoops, sbrk failed
                 return NULL;
             } else {
                 // great, got a new block
-                blockInfo* newBlock = ptrToNewMem - BLOCKINFOSIZE;
+                blockInfo* newBlock = ptrToNewMem;
                 newBlock->size = size;
                 newBlock->next = NULL;
                 newBlock->free = 0;
