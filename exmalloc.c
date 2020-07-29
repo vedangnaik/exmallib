@@ -1,62 +1,65 @@
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "exmallib.h"
 
 void* baseOfBlockLL = NULL;
 
-typedef struct blockInfo {
-    size_t size;
-    struct blockInfo* next;
-    int free;
-} blockInfo;
-#define BLOCKINFOSIZE sizeof(blockInfo)
-
-
+// This function scans the linked list of blockInfo's
+// to see if any of them are free and bigger than size.
 blockInfo* findFreeBlock(size_t size) {
     blockInfo* curr = baseOfBlockLL;
-    while (curr && (curr->size < size || !curr->free)) {
+    while (curr != NULL) {
+        if (curr->size >= size && curr->free == 1) {
+            break;
+        }
         curr = curr->next;
     }
     return curr;
 }
 
-
+// This function gets the OS to allocate the process size
+// units more memory by using the sbrk syscall.
 void* getMemoryFromOS(size_t size) {
     void* p = sbrk(0);
-    void* request = sbrk(size + BLOCKINFOSIZE);
+    // Ask for BLOCKINFOSIZE more memory since you need
+    // to store the blockInfo struct here too.
+    void* request = sbrk(size);
     if (request == (void*) -1) {
         // sbrk failed, oops
         return NULL;
     } else {
-        // great, you got some more memory. However, give them
-        // the pointer one blockSize up since you need to store
-        // the blockInfo struct for this block there
-        return request + BLOCKINFOSIZE;
+        // Great, you got some more memory. Return the pointer
+        // to it.
+        return request;
     }
 }
 
+// The actual exmalloc function which does memory allocation.
 void* exmalloc(size_t size) {
     if (size <= 0) { return NULL; }
 
     if (!baseOfBlockLL) {
-        // Welp, no base node. create a new block here
-        // and instantiate the base
-        void* ptrToNewMem = getMemoryFromOS(size);
+        // Welp, no base node. create a new block here and instantiate
+        // the base. Make sure to ask for enough memory to store
+        // the blockInfo struct for this block.
+        void* ptrToNewMem = getMemoryFromOS(size + BLOCKINFOSIZE);
         if (ptrToNewMem == NULL) {
-            // whoops, sbrk failed
+            // Whoops, sbrk failed.
             return NULL;
         } else {
-            // great, you got your memory. Create the blockInfo
-            // struct for it and put it at the location returned,
-            // minus the size.
-            blockInfo* base = ptrToNewMem - BLOCKINFOSIZE;
+            // Great, you got your memory. Create the blockInfo
+            // struct for it and put it at the location returned.
+            // Make this block the base.
+            blockInfo* base = ptrToNewMem;
             base->size = size;
             base->next = NULL;
             base->free = 0;
-            return ptrToNewMem;
+            baseOfBlockLL = base;
+
+            // return the pointer + the size of the blockInfo. Otherwise
+            // the blockInfo will get overwritten by the user.
+            return ptrToNewMem + BLOCKINFOSIZE;
         }
     } else {
-        // great, some blocks have been requested before
+        // Great, some blocks have been requested before
         // check them first to see if you can find any free ones
         blockInfo* usableBlock = findFreeBlock(size);
         if (usableBlock) {
@@ -90,28 +93,4 @@ void* exmalloc(size_t size) {
             }
         }
     }
-}
-
-void main() {
-    int numToAllocate = 10;
-    size_t spaceToAllocate = numToAllocate * sizeof(int);
-    
-    // Code to print out sizes of a blockInfo and it's components
-    // separately, just for my peace of mind. Note that they may not
-    // add up depending on your machine; the total space is 'padded'
-    // in order to ensure 'aligned memory access'.
-    // printf("Sizeof blockInfo: %d\n", BLOCKINFOSIZE);
-    // printf("Sizeof size var: %d\n", sizeof(size_t));
-    // printf("Sizeof next block pointer: %d\n", sizeof(blockInfo*));
-    // printf("Sizeof free var: %d\n\n", sizeof(int));
-
-    size_t old = (size_t)sbrk(0);
-    int* arr = exmalloc(10 * sizeof(int));
-    size_t new = (size_t)sbrk(0);
-
-    printf("Old system break point: %d\n", old);
-    printf("New system break point: %d\n", new);
-    printf("Sizeof blockInfo + new memory: %d\n", BLOCKINFOSIZE + spaceToAllocate);
-    printf("Difference between system breaks: %d\n", new-old);
-    printf("Malloc'd location: %d\n", arr);
 }
