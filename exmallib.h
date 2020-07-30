@@ -2,11 +2,13 @@
 The main header file for the exmallib project. It contains the declarations of all functions and global variables required by exmalloc, exrealloc, exfree, etc.
 */
 
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
+#include <string.h>
 
 
 #define ALIGNTO 8 /*!< The ALIGNTO constant defines the number of bytes to which exmalloc, exrealloc, etc. align the pointers they return. This is left configurable as different architectures support/require different alignments. */
@@ -26,18 +28,17 @@ typedef struct blockInfo {
 extern void* baseOfBlockLL; /*!< The global base pointer of the linked list of blockInfos that store the information of all memory blocks that have been exmalloc'd, exrealloc'd, etc. */
 
 
+// implemented in helpers.c
 blockInfo* memPtrToBlockInfoPtr(void* ptrToMem);
 void printBlockInfoLL();
 blockInfo* getLastLLNode();
-
-
 blockInfo* findFreeBlock(size_t size);
 void* getMemoryFromOS(size_t size);
 void* splitBlock(void* ptrToMem, size_t size);
+
+
+// implemented in exmallib.c
 void* exmalloc(size_t size);
-
-
 void exfree(void* ptrToMem);
-
-
 void* exrealloc(void* ptrToMem, size_t newSize);
+void* excalloc(unsigned int numObjs, size_t sizeOfObjs);

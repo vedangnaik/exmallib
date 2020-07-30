@@ -37,10 +37,10 @@ void* exmalloc(size_t size) {
         // Great, some blocks have been requested before. Check them first to see if you can find any free ones.
         blockInfo* usableBlock = findFreeBlock(size);
         if (usableBlock) {
-            // Great, you found a block which is big enough. Give it's address to the user and update its parameters
-            usableBlock->size = size;
+            // Great, you found a block which is big enough. Split it down to size first, then mark it not free.
             usableBlock->free = 0;
-            return usableBlock + 1;
+            void* ptrToMem = splitBlock(usableBlock + 1, size);
+            return ptrToMem;
 
         } else {
             // Welp, no free block is big enough. Hence, get some more memory, make a new one, and stick it to the end.
@@ -53,7 +53,7 @@ void* exmalloc(size_t size) {
             newBlock->next = NULL;
             newBlock->free = 0;
             // Add this blockInfo to the end of the linked list
-            blockInfo* lastBlock = getLastLLNode;
+            blockInfo* lastBlock = getLastLLNode();
             lastBlock->next = newBlock;
             
             return ptrToNewMem;

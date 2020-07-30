@@ -83,15 +83,16 @@ void printBlockInfoLL() {
     \details This function implements "shrinking" of a block, in a sense. The block of memory at \p ptrToMem is split into two. The first block remains in place, but shrunk down to \p size bytes. A new blockInfo struct is made for the second block, and it is marked free. 
     \param ptrToMem A pointer to a block of allocated memory.
     \param size The size, in bytes, to which to shrink the memory block down to.
-    \returns NULL, upon success or failure
+    \returns The same pointer \p ptrToMem which it was passed, with parameters now updated.
+    \returns NULL, if the size of the concerned memory block minus \p size is less than or equal to BLOCKINFOSIZE.
 */
 void* splitBlock(void* ptrToMem, size_t size) {
     if (!ptrToMem) { return NULL; }
 
     blockInfo* block = memPtrToBlockInfoPtr(ptrToMem);
-    if (block->size <= size) {
-        // Can't split the block bigger than it currently is lmao 
-        return NULL; 
+    if (block->size - size <= BLOCKINFOSIZE) {
+        // The new memory block requires BLOCKINFOSIZE bytes to store the blockInfo struct. If the new size leaves less than or equal to BLOCKINFOSIZE bytes free later, it can't be split.
+        return NULL;
     }
 
     // Create the new block at the appropriate location and add it to the end of the linked list
@@ -104,6 +105,8 @@ void* splitBlock(void* ptrToMem, size_t size) {
 
     // Now, we can resize the old block and update the info in blockInfo
     block->size = size;
+
+    return ptrToMem;
 }
 
 
