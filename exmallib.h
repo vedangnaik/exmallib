@@ -1,6 +1,10 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <math.h>
+
+#define ALIGNTO 8 // bytes
 
 // blockInfo struct and defined size
 typedef struct blockInfo {
@@ -15,6 +19,7 @@ extern void* baseOfBlockLL;
 
 // general helper functions
 blockInfo* memPtrToBlockInfoPtr(void* ptrToMem);
+void printBlockInfoLL();
 
 // exmalloc (malloc) and helper functions
 blockInfo* findFreeBlock(size_t size);

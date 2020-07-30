@@ -9,4 +9,5 @@ add_library(
 )
 
 add_executable(exmallibProject main.c)
-target_link_libraries(exmallibProject PRIVATE exmallib)
+target_link_libraries(exmallibProject exmallib)
+target_link_libraries(exmallibProject m)
