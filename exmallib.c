@@ -2,39 +2,9 @@
 
 void* baseOfBlockLL = NULL;
 
-// This function scans the linked list of blockInfo's
-// to see if any of them are free and bigger than size.
-blockInfo* findFreeBlock(size_t size) {
-    blockInfo* curr = baseOfBlockLL;
-    while (curr != NULL) {
-        if (curr->size >= size && curr->free == 1) {
-            break;
-        }
-        curr = curr->next;
-    }
-    return curr;
-}
-
-// This function gets the OS to allocate the process size
-// units more memory by using the sbrk syscall.
-void* getMemoryFromOS(size_t size) {
-    void* p = sbrk(0);
-    // Ask for BLOCKINFOSIZE more memory since you need
-    // to store the blockInfo struct here too.
-    void* request = sbrk(size);
-    if (request == (void*) -1) {
-        // sbrk failed, oops
-        return NULL;
-    } else {
-        // Great, you got some more memory. Return the pointer
-        // to it.
-        return request;
-    }
-}
-
 
 /*
-    The actual exmalloc function which does the memory allocation. It uses the two helpers functions above.
+exmalloc is my implementation of malloc. It uses the two helpers functions findFreeBlock and getMemoryFromOS. 
 */
 void* exmalloc(size_t size) {
     if (size <= 0) { return NULL; }
@@ -96,4 +66,53 @@ void* exmalloc(size_t size) {
             }
         }
     }
+}
+
+
+/*
+exfree is my implementation of free. Given a pointer to the block of memory that needs freedom, it first uses the helper memPtrToBlockInfoPtr to get the address of blockInfo of the block. It then sets the 'free' parameter of the blockInfo to 1.
+*/
+void exfree(void* ptrToMem) {
+    if (!ptrToMem) {
+        // Welp, someone gave you an invalid pointer
+        return;
+    } else {
+        blockInfo* blockInfoOfMem = memPtrToBlockInfoPtr(ptrToMem);
+        blockInfoOfMem->free = 1;
+    }
+}
+
+
+/*
+exrealloc is my implementation of realloc. It currently works quite naively: if the block is being shrunk, then nothing is done (lmao). If not, a new block with the requested amount of space is created and everything is copied over. It can be made more efficient. TODO
+*/
+void* exrealloc(void* ptrToMem, size_t newSize) {
+    if (ptrToMem == NULL) { return exmalloc(newSize); }
+    if (newSize <= 0) { return NULL; }
+    
+    blockInfo* block = memPtrToBlockInfoPtr(ptrToMem);
+    if (block->size >= newSize) {
+        // We will do nothing right now. Just return the current pointer.
+        // Actually freeing up memory will be implemented later.
+        return ptrToMem;
+    } else {
+        // We will have to make a new block and copy the data in this one.
+        // Mark the current block as free and exmalloc a new one, then memcpy  
+        void* newPtrToMem = exmalloc(newSize);
+        if (newPtrToMem == NULL) { return NULL; }
+        memcpy(newPtrToMem, ptrToMem, block->size);
+        block->free = 1;
+        return newPtrToMem;
+    }
+}
+
+
+/*
+excalloc is my implementation of calloc. Unlike the spec, however, excalloc does not do any checking for overflows or anything. TODO
+*/
+void* excalloc(unsigned int numObjs, size_t sizeOfObjs) {
+    size_t size = numObjs * sizeOfObjs;
+    void* ptrToMem = exmalloc(size);
+    memset(ptrToMem, 0, size);
+    return ptrToMem;
 }

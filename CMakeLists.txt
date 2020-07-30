@@ -4,9 +4,7 @@ project(exmallibProject VERSION 1.0)
 add_library(
     exmallib STATIC
     exmallib.h
-    exmalloc.c
-    exfree.c
-    exrealloc.c
+    exmallib.c
     helpers.c
 )
 
