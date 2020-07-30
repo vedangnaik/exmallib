@@ -34,7 +34,7 @@ void printBlockInfoLL();
 blockInfo* getLastLLNode();
 blockInfo* findFreeBlock(size_t size);
 void* getMemoryFromOS(size_t size);
-void* splitBlock(void* ptrToMem, size_t size);
+void splitBlock(void* ptrToMem, size_t size);
 
 
 // implemented in exmallib.c

@@ -37,10 +37,10 @@ void* exmalloc(size_t size) {
         // Great, some blocks have been requested before. Check them first to see if you can find any free ones.
         blockInfo* usableBlock = findFreeBlock(size);
         if (usableBlock) {
-            // Great, you found a block which is big enough. Split it down to size first, then mark it not free.
+            // Great, you found a block which is big enough. Split it down to size first, then mark it not free. exrealloc can be used here, but that would likely be inefficient due to the addition of a stack frame.
             usableBlock->free = 0;
-            void* ptrToMem = splitBlock(usableBlock + 1, size);
-            return ptrToMem;
+            splitBlock(usableBlock + 1, size);
+            return usableBlock;
 
         } else {
             // Welp, no free block is big enough. Hence, get some more memory, make a new one, and stick it to the end.
@@ -56,7 +56,7 @@ void* exmalloc(size_t size) {
             blockInfo* lastBlock = getLastLLNode();
             lastBlock->next = newBlock;
             
-            return ptrToNewMem;
+            return ptrToNewMem + BLOCKINFOSIZE;
         }
     }
 }
@@ -91,17 +91,17 @@ void* exrealloc(void* ptrToMem, size_t newSize) {
     
     blockInfo* block = memPtrToBlockInfoPtr(ptrToMem);
     if (block->size >= newSize) {
-        // We will do nothing right now. Just return the current pointer.
-        // Actually freeing up memory will be implemented later.
+        // The prime location to use splitBlock(). The actual return value of splitBlock is ignored, since it doesn't matter whether it failed or not; there's more than or equal to newSize bytes of memory anyway.
+        splitBlock(ptrToMem, newSize);
         return ptrToMem;
     } else {
         // We will have to make a new block and copy the data in this one.
         // Mark the current block as free and exmalloc a new one, then memcpy  
-        void* newPtrToMem = exmalloc(newSize);
-        if (newPtrToMem == NULL) { return NULL; }
-        memcpy(newPtrToMem, ptrToMem, block->size);
+        void* ptrToNewMem = exmalloc(newSize);
+        if (ptrToNewMem == NULL) { return NULL; }
+        memcpy(ptrToNewMem, ptrToMem, block->size);
         block->free = 1;
-        return newPtrToMem;
+        return ptrToNewMem;
     }
 }
 

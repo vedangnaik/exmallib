@@ -10,8 +10,7 @@ The main testing file for the exmallib project. It contains the main function.
 void main() {
     size_t old = (size_t)sbrk(0);
     int* a = exmalloc(80 * sizeof(char));
-    exfree(a);
-    int* b = exmalloc(20 * sizeof(char));
+    int* b = exrealloc(a, 100 * sizeof(char));
     printBlockInfoLL();
     size_t new = (size_t)sbrk(0);
 
