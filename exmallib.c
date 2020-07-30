@@ -1,76 +1,71 @@
+/*! \file exmallib.c
+The main implementation file for the exmallib project. It contains the implementations of exmalloc, exrealloc, exfree, etc.
+*/
+
+
 #include "exmallib.h"
+
 
 void* baseOfBlockLL = NULL;
 
 
-/*
-exmalloc is my implementation of malloc. It uses the two helpers functions findFreeBlock and getMemoryFromOS. 
+/*! 
+    \brief exmalloc is my implementation of malloc.
+    \details 
+    \param size The size in bytes of memory to be allocated. 
+    \returns A pointer to the start of the block of allocated memory.
 */
 void* exmalloc(size_t size) {
     if (size <= 0) { return NULL; }
 
     if (!baseOfBlockLL) {
-        // Welp, no base node. create a new block here and instantiate
-        // the base. Make sure to ask for enough memory to store
-        // the blockInfo struct for this block.
+        // Welp, no base node. Create a new block here and instantiate the base. Make sure to ask for enough memory to store the blockInfo struct for this block.
         void* ptrToNewMem = getMemoryFromOS(size + BLOCKINFOSIZE);
-        if (ptrToNewMem == NULL) {
-            // Whoops, sbrk failed.
-            return NULL;
-        } else {
-            // Great, you got your memory. Create the blockInfo
-            // struct for it and put it at the location returned.
-            // Make this block the base.
-            blockInfo* base = ptrToNewMem;
-            base->size = size;
-            base->next = NULL;
-            base->free = 0;
-            baseOfBlockLL = base;
+        if (ptrToNewMem == NULL) { return NULL; }
+        
+        // Great, you got your memory. Create the blockInfo struct for it and put it at the location returned. Make this block the base.
+        blockInfo* base = ptrToNewMem;
+        base->size = size;
+        base->next = NULL;
+        base->free = 0;
+        baseOfBlockLL = base;
 
-            // return the pointer + the size of the blockInfo. Otherwise
-            // the blockInfo will get overwritten by the user.
-            return ptrToNewMem + BLOCKINFOSIZE;
-        }
+        // Return the pointer + the size of the blockInfo. Otherwise the blockInfo will get overwritten by the user.
+        return ptrToNewMem + BLOCKINFOSIZE;
+
     } else {
-        // Great, some blocks have been requested before
-        // check them first to see if you can find any free ones
+        // Great, some blocks have been requested before. Check them first to see if you can find any free ones.
         blockInfo* usableBlock = findFreeBlock(size);
         if (usableBlock) {
-            // great, you found a block which is big enough. 
-            // give it's address to the user and update its parameters
+            // Great, you found a block which is big enough. Give it's address to the user and update its parameters
             usableBlock->size = size;
             usableBlock->free = 0;
             return usableBlock + 1;
+
         } else {
-            // welp, no free block is big enough. Hence, get some
-            // more memory, make a new one, and stick it to the end.
+            // Welp, no free block is big enough. Hence, get some more memory, make a new one, and stick it to the end.
             void* ptrToNewMem = getMemoryFromOS(size + BLOCKINFOSIZE);
-            if (ptrToNewMem == NULL) {
-                // whoops, sbrk failed
-                return NULL;
-            } else {
-                // great, got a new block
-                blockInfo* newBlock = ptrToNewMem;
-                newBlock->size = size;
-                newBlock->next = NULL;
-                newBlock->free = 0;
-                // traverse the linked list to get to the end and add
-                // this guy to the end
-                blockInfo* curr = baseOfBlockLL;
-                while (curr->next) {
-                    curr = curr->next;
-                }
-                curr->next = newBlock;
-                
-                return ptrToNewMem;
-            }
+            if (ptrToNewMem == NULL) { return NULL; }
+
+            // Great, got a new block
+            blockInfo* newBlock = ptrToNewMem;
+            newBlock->size = size;
+            newBlock->next = NULL;
+            newBlock->free = 0;
+            // Add this blockInfo to the end of the linked list
+            blockInfo* lastBlock = getLastLLNode;
+            lastBlock->next = newBlock;
+            
+            return ptrToNewMem;
         }
     }
 }
 
 
-/*
-exfree is my implementation of free. Given a pointer to the block of memory that needs freedom, it first uses the helper memPtrToBlockInfoPtr to get the address of blockInfo of the block. It then sets the 'free' parameter of the blockInfo to 1.
+/*! 
+    \brief exfree is my implementation of free.
+    \details exfree frees the block of memory pointed to my \p ptrToMem by setting the free parameter of it's blockInfo struct to 1.
+    \param ptrToMem A pointer to a block of allocated memory.
 */
 void exfree(void* ptrToMem) {
     if (!ptrToMem) {
@@ -83,8 +78,12 @@ void exfree(void* ptrToMem) {
 }
 
 
-/*
-exrealloc is my implementation of realloc. It currently works quite naively: if the block is being shrunk, then nothing is done (lmao). If not, a new block with the requested amount of space is created and everything is copied over. It can be made more efficient. TODO
+/*! 
+    \brief exrealloc is my implementation of realloc.
+    \details exrealloc currently works quite naively: if the block is being shrunk, then nothing is done. If not, a new block with the requested amount of space is created and everything is copied over. It can be made more efficient.
+    \param ptrToMem A pointer to a block of allocated memory.
+    \param newSize The new size in bytes to which to resize the memory block pointed to by \p ptrToMem   
+    \returns A pointer to the start of the resized block of memory.
 */
 void* exrealloc(void* ptrToMem, size_t newSize) {
     if (ptrToMem == NULL) { return exmalloc(newSize); }
@@ -107,8 +106,11 @@ void* exrealloc(void* ptrToMem, size_t newSize) {
 }
 
 
-/*
-excalloc is my implementation of calloc. Unlike the spec, however, excalloc does not do any checking for overflows or anything. TODO
+/*! 
+    \brief excalloc is my implementation of calloc.
+    \param numObjs The number of objects to allocate
+    \param sizeOfObjs The size of each object
+    \returns A pointer to the start of the block of zero'd out memory.
 */
 void* excalloc(unsigned int numObjs, size_t sizeOfObjs) {
     size_t size = numObjs * sizeOfObjs;

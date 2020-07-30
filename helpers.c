@@ -1,16 +1,27 @@
+/*! \file helpers.c
+The helpers file for the exmallib project. It contains the implementation of all the helper functions used by exmalloc, exrealloc, etc, along with various linked list traversal and convinence functions.
+*/
+
+
 #include "exmallib.h"
 
 
-/* 
-memPtrToBlockInfoPtr "converts" a pointer to memory created by exmalloc et al. to a pointer to the blockInfo of that block. To do this, it subtracts the size of a blockInfo struct from the pointer; this works since exmalloc et al. store the blockInfo for a block direcly behind the pointer they return. 
+/*! 
+    \brief "Converts" a pointer to memory created by exmalloc et al. to a pointer to the blockInfo of that block. 
+    \details To do so, the size of a blockInfo struct is subtracted from the ptrToMem; this works since exmalloc et al. store the blockInfo for a block direcly behind the pointer they return.
+    \param ptrToMem A pointer to a block of allocated memory
+    \returns A pointer to the blockInfo of the memory pointed to by \p ptrToMem
 */
 blockInfo* memPtrToBlockInfoPtr(void* ptrToMem) {
     return ptrToMem - BLOCKINFOSIZE;
 }
 
 
-/* 
-findFreeBlock traverses the linked list of blockInfo's created in the past to find one which is free and is attached to memory equal to or greater than 'size'.
+/*! 
+    \brief Finds a free block which is larger than or equal to \p size in the global linked list of blockInfo's.
+    \param size The minimum size of a free block sought.
+    \returns A pointer to the blockInfo of a free block with size greater than or equal to \p size.
+    \returns NULL, if no such block if found. 
 */
 blockInfo* findFreeBlock(size_t size) {
     blockInfo* curr = baseOfBlockLL;
@@ -24,10 +35,10 @@ blockInfo* findFreeBlock(size_t size) {
 }
 
 
-/*
-getMemoryFromOS moves the system break point up by 'size' units. It can be seen as a naive way of getting more memory from the OS, although memory allocaed this way cannot be freed/reused later.
-
-NOTE: 
+/*! 
+    \brief Moves the system break point up by \p size units.
+    \details This function can be seen as a naive way of getting more memory from the OS, although memory allocaed this way cannot be freed/reused later.
+    \param size The number of bytes by which to move the system break point.
 */
 void* getMemoryFromOS(size_t size) {
     void* p = sbrk(0);
@@ -49,8 +60,9 @@ void* getMemoryFromOS(size_t size) {
 }
 
 
-/*
-A helper function to print out each node of the blockInfo linked list. Useful for priliminary debugging and visualization of memory allocation.
+/*! 
+    \brief A helper function which prints out each node of the blockInfo linked list.
+    \details This function is useful for preliminary debugging and visualization of the memory allocation process.
 */
 void printBlockInfoLL() {
     blockInfo* curr = baseOfBlockLL;
@@ -63,4 +75,44 @@ void printBlockInfoLL() {
 
         curr = curr->next;
     }
+}
+
+
+/*! 
+    \brief Splits the block of memory at \p ptrToMem into two parts, with the first part being \p size bytes large.
+    \details This function implements "shrinking" of a block, in a sense. The block of memory at \p ptrToMem is split into two. The first block remains in place, but shrunk down to \p size bytes. A new blockInfo struct is made for the second block, and it is marked free. 
+    \param ptrToMem A pointer to a block of allocated memory.
+    \param size The size, in bytes, to which to shrink the memory block down to.
+    \returns NULL, upon success or failure
+*/
+void* splitBlock(void* ptrToMem, size_t size) {
+    if (!ptrToMem) { return NULL; }
+
+    blockInfo* block = memPtrToBlockInfoPtr(ptrToMem);
+    if (block->size <= size) {
+        // Can't split the block bigger than it currently is lmao 
+        return NULL; 
+    }
+
+    // Create the new block at the appropriate location and add it to the end of the linked list
+    blockInfo* newBlock = ptrToMem + BLOCKINFOSIZE + size;
+    newBlock->size = block->size - size;
+    newBlock->next = NULL;
+    newBlock->free = 1;
+    blockInfo* lastBlock = getLastLLNode();
+    lastBlock->next = newBlock;
+
+    // Now, we can resize the old block and update the info in blockInfo
+    block->size = size;
+}
+
+
+/*! 
+    \brief Gets the last node of the blockInfo linked list.
+    \returns A pointer to the last node of the blockInfo linked list.
+*/
+blockInfo* getLastLLNode() {
+    blockInfo* curr = baseOfBlockLL;
+    while (curr->next) { curr = curr->next; }
+    return curr;
 }
