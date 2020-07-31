@@ -1,5 +1,5 @@
 /*! \file main.c
-The main testing file for the exmallib project. It contains the main function.
+The testing file for the exmallib library. It contains the main function.
 */
 
 
@@ -9,9 +9,12 @@ The main testing file for the exmallib project. It contains the main function.
 
 void main() {
     size_t old = (size_t)sbrk(0);
-    int* a = exmalloc(100 * sizeof(char));
-    int* b = exrealloc(a, 30 * sizeof(char));
-    printBlockInfoLL();
+    int* a = exmalloc(40 * sizeof(char));
+    exfree(a);
+    int* b = exmalloc(80 * sizeof(char));
+    exfree(b);
+    int* c = exmalloc(144 * sizeof(char));
+    // printBlockInfoLL();
     size_t new = (size_t)sbrk(0);
 
     printf("Old system break point: %d\n", old);

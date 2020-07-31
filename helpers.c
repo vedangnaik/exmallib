@@ -20,16 +20,26 @@ blockInfo* memPtrToBlockInfoPtr(void* ptrToMem) {
 
 
 /*! 
-    \brief Finds a free block which is larger than or equal to \p size in the global linked list of blockInfo's.
-    \param size The minimum size of a free block sought.
-    \returns A pointer to the blockInfo of a free block with size greater than or equal to \p size.
+    \brief Gets a free block which is larger than or equal to \p alignedSize in the global linked list of blockInfo's, if one exists.
+    \details The function scans the linked list for free blocks. If a free block is found and is large enough, it is returned. If it is not large enough but the next block is free too, they are both merged and then checked again. This is done recursively until a block is found or the end of the linked list is reached.
+    \param alignedSize The minimum size of a free block sought. It is ASSUMED to be aligned.
+    \returns A pointer to the blockInfo of a free block with size greater than or equal to \p alignedSize.
     \returns NULL, if no such block if found. 
 */
-blockInfo* findFreeBlock(size_t size) {
+blockInfo* getFreeBlock(size_t alignedSize) {
     blockInfo* curr = baseOfBlockLL;
     while (curr != NULL) {
-        if (curr->size >= size && curr->free == 1) {
-            break;
+        if (curr->free == 1) {
+            if (curr->size >= alignedSize) {
+                // A large enough free block has been found. Return it.
+                break;
+            } else if (curr->next && curr->next->free == 1) {
+                // This block isn't big enough but the neighbour is free too. Thus, they can be merged. Point the current block to neighbour's neighbour, then overwrite the ex-neighbour.
+                curr->size += curr->next->size + BLOCKINFOSIZE;
+                curr->next = curr->next->next;
+                // The next-next neighbour might also be free, so call the function recursively to check. Probably overkill lmao
+                return getFreeBlock(alignedSize);
+            }
         }
         curr = curr->next;
     }
@@ -68,11 +78,11 @@ void* getMemoryFromOS(size_t alignedSize) {
 void printBlockInfoLL() {
     blockInfo* curr = baseOfBlockLL;
     while (curr) {
-        printf("blockInfo@    %p\n", curr);
+        printf("blockInfo@    %d\n", curr);
         printf("Block size    %d\n", curr->size);
-        printf("Block next    %p\n", curr->next);
+        printf("Block next    %d\n", curr->next);
         printf("Block free?   %s\n", (curr->free == 0) ? "No" : "Yes");
-        printf("Actual mem@   %p\n\n", curr + 1);
+        printf("Actual mem@   %d\n\n", curr + 1);
 
         curr = curr->next;
     }
@@ -87,16 +97,16 @@ void printBlockInfoLL() {
     \returns NULL
 */
 void splitBlock(void* ptrToMem, size_t alignedSize) {
-    if (!ptrToMem) { return NULL; }
+    if (!ptrToMem) { return; }
 
     blockInfo* block = memPtrToBlockInfoPtr(ptrToMem);
     if (block->size - alignedSize <= BLOCKINFOSIZE) {
         // The new memory block requires BLOCKINFOSIZE bytes to store the blockInfo struct. If the new size leaves less than or equal to BLOCKINFOSIZE bytes free, it can't be split.
-        return NULL;
+        return;
     }
 
     // Create the new block at the appropriate location. Mark it free and set it's next parameter to the immediate next block in the linked list.
-    blockInfo* newBlock = ptrToMem + BLOCKINFOSIZE + alignedSize;
+    blockInfo* newBlock = ptrToMem + alignedSize;
     newBlock->size = block->size - alignedSize - BLOCKINFOSIZE;
     newBlock->next = block->next;
     newBlock->free = 1;

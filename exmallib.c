@@ -36,7 +36,7 @@ void* exmalloc(size_t size) {
 
     } else {
         // Great, some blocks have been requested before. Check them first to see if you can find any free ones.
-        blockInfo* usableBlock = findFreeBlock(alignedSize);
+        blockInfo* usableBlock = getFreeBlock(alignedSize);
         if (usableBlock) {
             // Great, you found a block which is big enough. Split it down to size first, then mark it not free. exrealloc can be used here, but that would likely be inefficient due to the addition of a stack frame.
             usableBlock->free = 0;

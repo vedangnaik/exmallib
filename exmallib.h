@@ -25,14 +25,14 @@ typedef struct blockInfo {
 #define BLOCKINFOSIZE sizeof(blockInfo) /*!< Quite self-explnatory. The size of a blockInfo struct is stored as a constant since it will never change. */
 
 
-extern void* baseOfBlockLL; /*!< The global base pointer of the linked list of blockInfos that store the information of all memory blocks that have been exmalloc'd, exrealloc'd, etc. */
+extern void* baseOfBlockLL; /*!< The global base pointer of the linked list of blockInfos that store the information of all memory blocks that have been exmalloc'd, exrealloc'd, etc. IMPORTANTLY, contiguous nodes in this linked list are also contiguous in memory (like a static array).*/
 
 
 // implemented in helpers.c
 blockInfo* memPtrToBlockInfoPtr(void* ptrToMem);
 void printBlockInfoLL();
 blockInfo* getLastLLNode();
-blockInfo* findFreeBlock(size_t size);
+blockInfo* getFreeBlock(size_t size);
 void* getMemoryFromOS(size_t size);
 void splitBlock(void* ptrToMem, size_t size);
 size_t alignSize(size_t size);
