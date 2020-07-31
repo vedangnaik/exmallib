@@ -1,5 +1,7 @@
 /*! \file helpers.c
-The helpers file for the exmallib project. It contains the implementation of all the helper functions used by exmalloc, exrealloc, etc, along with various linked list traversal and convinence functions.
+The helpers file for the exmallib project. It contains the implementation of all the helper functions used by exmalloc, exrealloc, etc, along with various linked list traversal and convinence functions. 
+
+Helper functions always assume that the sizes they pass are aligned. It is the job of exmalloc, etc. to pass their helpers aligned sizes.
 */
 
 
@@ -36,19 +38,18 @@ blockInfo* findFreeBlock(size_t size) {
 
 
 /*! 
-    \brief Moves the system break point up by \p size units.
+    \brief Moves the system break point up by \p alignedSize units.
     \details This function can be seen as a naive way of getting more memory from the OS, although memory allocaed this way cannot be freed/reused later.
-    \param size The number of bytes by which to move the system break point.
+    \param alignedSize The number of bytes by which to move the system break point. It is ASSUMED to be aligned.
 */
-void* getMemoryFromOS(size_t size) {
+void* getMemoryFromOS(size_t alignedSize) {
     void* p = sbrk(0);
     int paddingRequired = (long)p % ALIGNTO;
     if (paddingRequired != 0) {
-        // The cuurrent top of the heap is misaligned. Thus, we move the top of the heap into alignment and then start allocating more memory
+        // The cuurrent top of the heap is misaligned. Thus, we move the top of the heap into alignment and then start allocating more memory. Ideally this should only be a one-time thing.
         sbrk(paddingRequired);
     }
-    // The top of the heap is now aligned. We can go ahead and allocate the memory. 'size' is rounded up a multiple of ALIGNTO in order to not waste space; since the system break point will always be aligned, 1-7 bytes in between blocks will be wasted and inaccessible otherwise. 
-    size_t alignedSize = ALIGNTO * ceil((double)size / ALIGNTO);
+    // Since size is assumed to be aligned, it is passed directly. The system break point will thus remain aligned after being moved.
     void* request = sbrk(alignedSize);
     if (request == (void*) -1) {
         // sbrk failed, oops
@@ -79,31 +80,30 @@ void printBlockInfoLL() {
 
 
 /*! 
-    \brief Splits the block of memory at \p ptrToMem into two parts, with the first part being \p size bytes large.
-    \details This function implements "shrinking" of a block, in a sense. The block of memory at \p ptrToMem is split into two. The first block remains in place, but shrunk down to \p size bytes. A new blockInfo struct is made for the second block, and it is marked free. 
+    \brief Splits the block of memory at \p ptrToMem into two parts, with the first part being \p alignedSize bytes large.
+    \details This function implements "shrinking" of a block, in a sense. The block of memory at \p ptrToMem is split into two. The first block remains in place, but shrunk down to \p alignedSize bytes. A new blockInfo struct is made for the second block, and it is marked free. IMPORTANTLY, this new split-off block is added directly after the shrunked one, to preserve memory contiguity. 
     \param ptrToMem A pointer to a block of allocated memory.
-    \param size The size, in bytes, to which to shrink the memory block down to.
+    \param alignedSize The size, in bytes, to which to shrink the memory block down to. It is ASSUMED to be aligned.
     \returns NULL
 */
-void splitBlock(void* ptrToMem, size_t size) {
+void splitBlock(void* ptrToMem, size_t alignedSize) {
     if (!ptrToMem) { return NULL; }
 
     blockInfo* block = memPtrToBlockInfoPtr(ptrToMem);
-    if (block->size - size <= BLOCKINFOSIZE) {
-        // The new memory block requires BLOCKINFOSIZE bytes to store the blockInfo struct. If the new size leaves less than or equal to BLOCKINFOSIZE bytes free later, it can't be split.
+    if (block->size - alignedSize <= BLOCKINFOSIZE) {
+        // The new memory block requires BLOCKINFOSIZE bytes to store the blockInfo struct. If the new size leaves less than or equal to BLOCKINFOSIZE bytes free, it can't be split.
         return NULL;
     }
 
-    // Create the new block at the appropriate location and add it to the end of the linked list
-    blockInfo* newBlock = ptrToMem + BLOCKINFOSIZE + size;
-    newBlock->size = block->size - size;
-    newBlock->next = NULL;
+    // Create the new block at the appropriate location. Mark it free and set it's next parameter to the immediate next block in the linked list.
+    blockInfo* newBlock = ptrToMem + BLOCKINFOSIZE + alignedSize;
+    newBlock->size = block->size - alignedSize - BLOCKINFOSIZE;
+    newBlock->next = block->next;
     newBlock->free = 1;
-    blockInfo* lastBlock = getLastLLNode();
-    lastBlock->next = newBlock;
 
-    // Now, we can resize the old block and update the info in blockInfo
-    block->size = size;
+    // Now, we can update the blockInfo. It will now point to the new block just created, which also appears ahead of it in memory.
+    block->size = alignedSize;
+    block->next = newBlock;
 }
 
 
@@ -115,4 +115,14 @@ blockInfo* getLastLLNode() {
     blockInfo* curr = baseOfBlockLL;
     while (curr->next) { curr = curr->next; }
     return curr;
+}
+
+
+/*! 
+    \brief Rounds up \p size to the nearest multiple of \p ALIGNTO.
+    \param size The size in bytes to be rounded up.
+    \returns THe smallest multiple of ALIGNTO larger than or equal to \p size
+*/
+size_t alignSize(size_t size) {
+    return ALIGNTO * ceil((double)size / ALIGNTO);
 }
