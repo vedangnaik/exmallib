@@ -65,7 +65,7 @@ void* exmalloc(size_t size) {
 
 /*! 
     \brief exfree is my implementation of free.
-    \details exfree frees the block of memory pointed to my \p ptrToMem by setting the free parameter of it's blockInfo struct to 1.
+    \details exfree frees the block of memory pointed to my \p ptrToMem by   setting the free parameter of it's blockInfo struct to 1.
     \param ptrToMem A pointer to a block of allocated memory.
 */
 void exfree(void* ptrToMem) {
